@@ -11,17 +11,20 @@ class Task:
         pass
 
     def __str__(self): # printing the string
-        return f"title: {self.title}, priority: {self.priority}, done: {self.done}"
+        return f"{self.title} {self.priority} {self.done}"
         pass
 
     def __repr__(self):
-        return f"title: {self.title}, priority: {self.priority}, done: {self.done}"
+        return self.__str__()
         pass
-
+    
     # creating a dictionary 
     def to_dict(self):
-        base = {"title": self.title, "priority": self.priority, "done": self.done}
-        return base
+        return {
+            "title": self.title,
+            "priority": self.priority,
+            "done": self.done
+        }
         
 class Deadline(Task):  # deadline class
     def __init__(self, title, priority, done, due_date):
@@ -29,19 +32,22 @@ class Deadline(Task):  # deadline class
         self.due_date = due_date
 
     def __str__(self):
-        return f"title: {self.title}, priority: {self.priority}, done: {self.done}, due_date: {self.due_date}"
+        return f"{self.title} {self.priority} {self.done} {self.due_date}"
 
     def to_dict(self):
         base = super().to_dict()
         base["due_date"] = self.due_date
         return base
+
+    def __repr__(self):
+        return super().__repr__()
 class Recurring(Task): # recurring class
     def __init__(self, title, priority, done, frequency):
         super().__init__(title, priority, done)
         self.frequency = frequency
 
     def __str__(self):
-        return f"title: {self.title}, priority: {self.priority}, done: {self.done}, frequency: {self.frequency}"
+        return f"{self.title} {self.priority} {self.done} {self.frequency}"
 
     def to_dict(self):
         base = super().to_dict()
