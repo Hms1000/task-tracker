@@ -41,6 +41,7 @@ class Deadline(Task):  # deadline class
 
     def __repr__(self):
         return super().__repr__()
+    
 class Recurring(Task): # recurring class
     def __init__(self, title, priority, done, frequency):
         super().__init__(title, priority, done)
@@ -58,8 +59,13 @@ class TaskManager(): # list of Tasks class
         self.tasks = []
         pass
 
-    def add_tasks(self, task):
-        self.tasks.append(task)
+    def add_tasks(self, task): #add a task to the list only if it doesn't exist
+        for t in self.tasks:
+            if t.title == task.title:
+                print(f"{task.title} already in the list")
+                return
+        else:
+            self.tasks.append(task)
 
     def __str__(self):
         return "List of Tasks"
@@ -117,13 +123,17 @@ def main():
         else:
             new_task = Task(args.title, args.priority, args.done)
 
-        manager.tasks.append(new_task)
+        added = manager.add_tasks(new_task)
+        if added:
+            updated_data = manager.add_tasks(new_task)
+            with open(filename, "w") as f:
+                json.dump(updated_data, f)
+            print("Task Added")
 
-        updated_data = manager.to_dict_list()
-        with open(filename, "w") as f:
-            json.dump(updated_data, f)
-        print("Task Added")
-            
+    if args.filter: # filtering by priority
+        for task in manager.tasks:
+            if task.priority == args.filter:
+                print(task)            
     
 if __name__=="__main__":
     main()
