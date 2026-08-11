@@ -7,7 +7,7 @@ cursor = conn.cursor()
 # creating a table
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS tasks (
-    title TEXT,
+    title TEXT UNIQUE,
     priority TEXT,
     done BOOLEAN,
     due_date TEXT,
@@ -19,5 +19,10 @@ cursor.execute(
     "INSERT INTO tasks (title, priority, done, due_date, frequency) VALUES (?, ?, ?, ?, ?)",
     ("Dune", "low", 0, "June 30", "weekly"),
       )
+
+cursor.execute("SELECT * FROM tasks")
+
+rows = cursor.fetchall()
+print(rows)
 
 conn.commit()
