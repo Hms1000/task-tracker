@@ -1,6 +1,4 @@
-import os
-import json
-import argparse
+import sqlite3, argparse
 
 # task base class
 class Task:
@@ -63,9 +61,11 @@ class TaskManager(): # list of Tasks class
         for t in self.tasks:
             if t.title == task.title:
                 print(f"{task.title} already in the list")
-                return
+                return False
         else:
             self.tasks.append(task)
+            return True
+        
 
     def __str__(self):
         return "List of Tasks"
@@ -87,7 +87,7 @@ def main():
     parser.add_argument("--list", action="store_true", help="list all tasks")
     parser.add_argument("--add", action="store_true", help="add task")
     parser.add_argument("--title", help="title of task")
-    parser.add_argument("--filter", help="filter tasks")
+    parser.add_argument("--filter", help="filter by priority")
     parser.add_argument("--priority", help="priority level of task e.g low")
     parser.add_argument("--done", action="store_true", help="return 'True/False'")
     parser.add_argument("--due_date", help="last date")
@@ -95,25 +95,40 @@ def main():
 
     args = parser.parse_args()
 
-    # checking if the filename exists and if its not empty before reading the json file
-    filename = "tracker.json"
-    if os.path.exists(filename) and os.path.getsize(filename) != 0:
-        with open(filename, "r") as f:
-            task_dic_list = json.load(f)
+    conn = sqlite3.connect("tracker.db")
+    cursor = conn.cursor()
 
-    else:
-        task_dic_list = []
+    # creating a database table
+    cursor.execute(""" 
+        CREATE TABLE IF NOT EXISTS tasks (
+            title TEXT UNIQUE,
+            priority TEXT,
+            done BOOLEAN,
+            due_date TEXT,
+            frequency TEXT
+        )
+    """)
+    conn.commit()
 
-     # rebuilding every saved task into a real object
-    for d in task_dic_list:
-        if "due_date" in d:
-            rebuilt = Deadline(d["title"], d["priority"], d["done"], d["due_date"])
-        elif "frequency" in d:
-            rebuilt = Recurring(d["title"], d["priority"], d["done"], d["frequency"])
+    cursor.execute("SELECT * FROM tasks") # selecting tasks to print
+    rows = cursor.fetchall()
+
+    for row in rows:
+        title = row[0]
+        priority = row[1]
+        done = row[2]
+        due_date = row[3]
+        frequency = row[4]
+
+        if due_date is not None:
+            rebuilt = Deadline(title, priority, done, due_date)
+        elif frequency is not None:
+            rebuilt = Recurring(title, priority, done, frequency)
         else:
-            rebuilt = Task(d["title"], d["priority"], d["done"])
-        manager.tasks.append(rebuilt)
+            rebuilt = Task(title, priority, done)
 
+        manager.add_tasks(rebuilt)
+   
     # what the user asks for
     if args.add:
         if args.due_date:
@@ -125,15 +140,20 @@ def main():
 
         added = manager.add_tasks(new_task)
         if added:
-            updated_data = manager.add_tasks(new_task)
-            with open(filename, "w") as f:
-                json.dump(updated_data, f)
+            due_date_value = getattr(new_task, "due_date", None)
+            frequency_value = getattr(new_task, "frequency", None)
+
+            cursor.execute(
+                "INSERT INTO tasks (title, priority, done, due_date, frequency) VALUES (?, ?, ?, ?, ?)",
+                (new_task.title, new_task.priority, new_task.done, due_date_value, frequency_value)
+            )
+            conn.commit()
             print("Task Added")
 
     if args.filter: # filtering by priority
         for task in manager.tasks:
             if task.priority == args.filter:
                 print(task)            
-    
+
 if __name__=="__main__":
     main()
