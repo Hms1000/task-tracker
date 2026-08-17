@@ -5,15 +5,16 @@ import sqlite3
 app = FastAPI() #fastapi client
 
 def get_connection(): #getting db connection and creating a cursor
-    with sqlite3.connect("tracker.db") as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            return cursor, conn
+    conn = sqlite3.connect("tracker.db")
+    conn.row_factory = sqlite3.Row
+    return conn
 
-cursor, conn = get_connection()
+setup_conn = get_connection()
+setup_cursor = setup_conn.cursor()
+
 
 # creating tasks table
-cursor.execute("""
+setup_cursor.execute("""
     CREATE TABLE IF NOT EXISTS tasks (
     title TEXT UNIQUE,
     priority TEXT,
@@ -23,10 +24,13 @@ cursor.execute("""
     )
 """)
 
-conn.commit()
+setup_conn.commit()
+setup_conn.close()
 
 @app.get("/tasks") # get endpoint used to list all tasks
 def list_tasks():
+      conn = get_connection()
+      cursor = conn.cursor()
       cursor.execute("SELECT * FROM tasks")
       rows = cursor.fetchall()
       conn.close()
