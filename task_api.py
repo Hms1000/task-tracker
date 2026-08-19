@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 class Task(SQLModel, table=True):
+     __tablename__ = "tasks"
      id: int | None = Field(default=None, primary_key=True)
      title: str = Field(unique=True)
      priority: str
@@ -8,6 +9,17 @@ class Task(SQLModel, table=True):
      due_date: str | None = None
      frequency: str | None = None
 
+class TaskCreate(SQLModel):
+     title: str 
+     priority: str
+     done: bool = False
+     due_date: str | None = None
+     frequency: str | None = None
+
+#class TaskUpdate(TaskCreate):
+
+     
+     
 engine = create_engine("sqlite:///tracker.db")
 SQLModel.metadata.create_all(engine)
 
@@ -19,7 +31,8 @@ def list_tasks():
            return session.exec(select(Task)).all()
 
 @app.post("/tasks")
-def create_task(task: Task):
+def create_task(task_in: TaskCreate):
+     task = Task(**task_in.model_dump())
      with Session(engine) as session:
           session.add(task)
           session.commit()
