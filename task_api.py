@@ -71,7 +71,7 @@ def update_task(title: str, updated:TaskUpdate):
           if updated.title is not None:
                task.title = updated.title
           if updated.priority is not None:
-               task.title = updated.title
+               task.priority = updated.priority
           if updated.done is not None:
                task.done = updated.done
           if updated.due_date is not None:
