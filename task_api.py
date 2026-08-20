@@ -16,9 +16,12 @@ class TaskCreate(SQLModel):
      due_date: str | None = None
      frequency: str | None = None
 
-#class TaskUpdate(TaskCreate):
-
-     
+class TaskUpdate(SQLModel):
+     title: str | None = None
+     priority: str | None = None
+     done: bool | None = None 
+     due_date: str | None = None
+     frequency: str | None = None
      
 engine = create_engine("sqlite:///tracker.db")
 SQLModel.metadata.create_all(engine)
@@ -58,16 +61,24 @@ def filter_tasks(priority: str):
           return session.exec(statement).all()
 
 @app.put("/tasks/{title}")
-def update_task(title: str, updated:Task):
+def update_task(title: str, updated:TaskUpdate):
      with Session(engine) as session:
           statement = select(Task).where(Task.title == title)
           task = session.exec(statement).first()
           if not task:
                return {"message": "Task not found"}
-          task.priority = updated.priority
-          task.done = updated.done
-          task.due_date = updated.due_date
-          task.frequency = updated.frequency
+
+          if updated.title is not None:
+               task.title = updated.title
+          if updated.priority is not None:
+               task.title = updated.title
+          if updated.done is not None:
+               task.done = updated.done
+          if updated.due_date is not None:
+               task.due_date = updated.due_date
+          if updated.frequency is not None:
+               task.frequency = updated.frequency
+
           session.add(task)
           session.commit()
           return task
