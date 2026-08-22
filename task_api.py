@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 class Task(SQLModel, table=True):
      __tablename__ = "tasks"
@@ -49,7 +49,7 @@ def delete_task(title: str):
           statement = select(Task).where(Task.title == title)
           task = session.exec(statement).first()
           if not task:
-               return {"message": "Task not found"}
+               raise HTTPException(status_code=404, detail="Task not found")
           session.delete(task)
           session.commit()
           return {"message": f"Deleted {title}"}
@@ -66,7 +66,7 @@ def update_task(title: str, updated:TaskUpdate):
           statement = select(Task).where(Task.title == title)
           task = session.exec(statement).first()
           if not task:
-               return {"message": "Task not found"}
+               raise HTTPException(status_code=404, detail="Task not found")
 
           if updated.title is not None:
                task.title = updated.title
