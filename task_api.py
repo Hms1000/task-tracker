@@ -1,5 +1,7 @@
-from fastapi import FastAPI
-from sqlmodel import SQLModel, Field, create_engine, Session, select
+from fastapi import FastAPI, HTTPException
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+from sqlmodel import SQLModel, Field, create_engine, Session
 class Task(SQLModel, table=True):
      __tablename__ = "tasks"
      id: int | None = Field(default=None, primary_key=True)
@@ -22,11 +24,20 @@ class TaskUpdate(SQLModel):
      done: bool | None = None 
      due_date: str | None = None
      frequency: str | None = None
+
+class User(SQLModel, table=True):
+     id: int | None = Field(default=None, primary_key=True)
+     username: str = Field(unique=True)
+     hashed_password: str
+class UserCreate(SQLModel):
+     username: str
+     password: str
      
 engine = create_engine("sqlite:///tracker.db")
 SQLModel.metadata.create_all(engine)
 
 app = FastAPI() #fastapi client
+ph = PasswordHasher()
 
 @app.get("/tasks") # get endpoint used to list all tasks
 def list_tasks():
@@ -41,7 +52,16 @@ def create_task(task_in: TaskCreate):
           session.commit()
           session.refresh(task)
           return task
-    
+
+@app.post("/register")
+def register(user_in: UserCreate):
+     hashed = ph.hash(user_in.password)
+     user = User(username=user_in.username, hashed_password=hashed)
+     with Session(engine) as session:
+          session.add(user)
+          session.commit()
+          session.refresh(user)
+          return {"message": f"User {user.username} created"}
 
 @app.delete("/tasks/{title}")
 def delete_task(title: str):
@@ -49,7 +69,7 @@ def delete_task(title: str):
           statement = select(Task).where(Task.title == title)
           task = session.exec(statement).first()
           if not task:
-               return {"message": "Task not found"}
+               raise HTTPException(status_code=404, detail="Task not found")
           session.delete(task)
           session.commit()
           return {"message": f"Deleted {title}"}
@@ -66,7 +86,7 @@ def update_task(title: str, updated:TaskUpdate):
           statement = select(Task).where(Task.title == title)
           task = session.exec(statement).first()
           if not task:
-               return {"message": "Task not found"}
+               raise HTTPException(status_code=404, detail="Task not found")
 
           if updated.title is not None:
                task.title = updated.title
