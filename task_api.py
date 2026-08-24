@@ -1,7 +1,18 @@
-from fastapi import FastAPI, HTTPException
+from jose import jwt
 from argon2 import PasswordHasher
+from fastapi import FastAPI, HTTPException
 from argon2.exceptions import VerifyMismatchError
+from datetime import datetime, timezone, timedelta
 from sqlmodel import SQLModel, Field, create_engine, Session, select
+
+SECRET_KEY = "my-secret-key" # secret key, exposed for now just for practice
+ALGORITHM = "HS256"          # hashing algorithm
+
+def create_access_token(username: str): # creating access token
+     expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+     data = {"sub": username, "exp": expire}
+     token = jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+     return token
 class Task(SQLModel, table=True): # creating a table with task information
      __tablename__ = "tasks"
      id: int | None = Field(default=None, primary_key=True)
@@ -68,7 +79,7 @@ def login(user_in: UserCreate):
      with Session(engine) as session:
           statement = select(User).where(User.username == user_in.username)
           user = session.exec(statement).first()
-
+          token = create_access_token(user.username)
           if not user:
                raise HTTPException(status_code=404, detail="Invalid username or password")
           try:
@@ -76,7 +87,7 @@ def login(user_in: UserCreate):
           except VerifyMismatchError:
                raise HTTPException(status_code=404, detail="Invalid username or password")
 
-          return {"message": f"Welcome {user.username}"}
+          return {"access_token": token, "token_type": "bearer"}
 
 @app.delete("/tasks/{title}") # deleting a task endpont
 def delete_task(title: str):
