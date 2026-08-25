@@ -29,12 +29,12 @@ def get_current_user(token: str = Depends(oauth2_scheme)): # decoding the payloa
 class Task(SQLModel, table=True): # creating a table with task information
      __tablename__ = "tasks"
      id: int | None = Field(default=None, primary_key=True)
-     title: str = Field(unique=True)
+     title: str 
      priority: str
      done: bool = False
      due_date: str | None = None
      frequency: str | None = None
-
+     owner: str
 class TaskCreate(SQLModel):   # task creation
      title: str 
      priority: str
@@ -70,7 +70,7 @@ def list_tasks(username: str = Depends(get_current_user)):
 
 @app.post("/tasks")
 def create_task(task_in: TaskCreate, username: str = Depends(get_current_user)):
-     task = Task(**task_in.model_dump())
+     task = Task(**task_in.model_dump(), owner=username)
      with Session(engine) as session:
           session.add(task)
           session.commit()
