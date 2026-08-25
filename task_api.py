@@ -1,6 +1,7 @@
-from jose import jwt
+from jose import jwt, JWTError
 from argon2 import PasswordHasher
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from argon2.exceptions import VerifyMismatchError
 from datetime import datetime, timezone, timedelta
 from sqlmodel import SQLModel, Field, create_engine, Session, select
@@ -8,11 +9,23 @@ from sqlmodel import SQLModel, Field, create_engine, Session, select
 SECRET_KEY = "my-secret-key" # secret key, exposed for now just for practice
 ALGORITHM = "HS256"          # hashing algorithm
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login") # finding the token request
+
 def create_access_token(username: str): # creating access token
      expire = datetime.now(timezone.utc) + timedelta(minutes=30)
      data = {"sub": username, "exp": expire}
      token = jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
      return token
+
+def get_current_user(token: str = Depends(oauth2_scheme)): # decoding the payload & checking if token  
+     try:                                                  # signature matches
+          payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+          username = payload.get("sub")
+          if username is None:
+               raise HTTPException(status_code=401, detail="Invalid token")
+          return username
+     except JWTError:
+          raise HTTPException(status_code=401, detail="Invalid token")
 class Task(SQLModel, table=True): # creating a table with task information
      __tablename__ = "tasks"
      id: int | None = Field(default=None, primary_key=True)
@@ -75,22 +88,22 @@ def register(user_in: UserCreate):
           return {"message": f"User {user.username} created"}
 
 @app.post("/login")           # authenticating and login in the user
-def login(user_in: UserCreate):
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
      with Session(engine) as session:
-          statement = select(User).where(User.username == user_in.username)
+          statement = select(User).where(User.username == form_data.username)
           user = session.exec(statement).first()
-          token = create_access_token(user.username)
           if not user:
-               raise HTTPException(status_code=404, detail="Invalid username or password")
+               raise HTTPException(status_code=401, detail="Invalid username or password")
           try:
-               ph.verify(user.hashed_password, user_in.password)
+               ph.verify(user.hashed_password, form_data.password)
           except VerifyMismatchError:
-               raise HTTPException(status_code=404, detail="Invalid username or password")
+               raise HTTPException(status_code=401, detail="Invalid username or password")
 
+          token = create_access_token(user.username)
           return {"access_token": token, "token_type": "bearer"}
 
 @app.delete("/tasks/{title}") # deleting a task endpont
-def delete_task(title: str):
+def delete_task(title: str, username: str = Depends(get_current_user)):
      with Session(engine) as session:
           statement = select(Task).where(Task.title == title)
           task = session.exec(statement).first()
@@ -106,7 +119,7 @@ def filter_tasks(priority: str):
           statement = select(Task).where(Task.priority == priority)
           return session.exec(statement).all()
 
-@app.put("/tasks/{title}")    # updatind tasks endpoint
+@app.put("/tasks/{title}")    # updating tasks endpoint
 def update_task(title: str, updated:TaskUpdate):
      with Session(engine) as session:
           statement = select(Task).where(Task.title == title)
