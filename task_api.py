@@ -64,12 +64,12 @@ app = FastAPI()                #fastapi client
 ph = PasswordHasher()
 
 @app.get("/tasks")             # get endpoint used to list all tasks
-def list_tasks():
+def list_tasks(username: str = Depends(get_current_user)):
       with Session(engine) as session:
            return session.exec(select(Task)).all()
 
 @app.post("/tasks")
-def create_task(task_in: TaskCreate):
+def create_task(task_in: TaskCreate, username: str = Depends(get_current_user)):
      task = Task(**task_in.model_dump())
      with Session(engine) as session:
           session.add(task)
@@ -114,13 +114,13 @@ def delete_task(title: str, username: str = Depends(get_current_user)):
           return {"message": f"Deleted {title}"}
 
 @app.get("/tasks/filter")     # filtering tasks endpoint
-def filter_tasks(priority: str):
+def filter_tasks(priority: str, username: str = Depends(get_current_user)):
      with Session(engine) as session:
           statement = select(Task).where(Task.priority == priority)
           return session.exec(statement).all()
 
 @app.put("/tasks/{title}")    # updating tasks endpoint
-def update_task(title: str, updated:TaskUpdate):
+def update_task(title: str, updated:TaskUpdate, username: str = Depends(get_current_user)):
      with Session(engine) as session:
           statement = select(Task).where(Task.title == title)
           task = session.exec(statement).first()
