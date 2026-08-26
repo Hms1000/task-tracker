@@ -66,7 +66,8 @@ ph = PasswordHasher()
 @app.get("/tasks")             # get endpoint used to list all tasks
 def list_tasks(username: str = Depends(get_current_user)):
       with Session(engine) as session:
-           return session.exec(select(Task)).all()
+           statement = select(Task).where(Task.owner == username)
+           return session.exec(statement).all()
 
 @app.post("/tasks")
 def create_task(task_in: TaskCreate, username: str = Depends(get_current_user)):
@@ -105,7 +106,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.delete("/tasks/{title}") # deleting a task endpont
 def delete_task(title: str, username: str = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.title == title)
+          statement = select(Task).where(Task.title == title).where(Task.owner == username)
           task = session.exec(statement).first()
           if not task:
                raise HTTPException(status_code=404, detail="Task not found")
@@ -116,13 +117,13 @@ def delete_task(title: str, username: str = Depends(get_current_user)):
 @app.get("/tasks/filter")     # filtering tasks endpoint
 def filter_tasks(priority: str, username: str = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.priority == priority)
+          statement = select(Task).where(Task.priority == priority).where(Task.owner == username)
           return session.exec(statement).all()
 
 @app.put("/tasks/{title}")    # updating tasks endpoint
 def update_task(title: str, updated:TaskUpdate, username: str = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.title == title)
+          statement = select(Task).where(Task.title == title).where(Task.owner == username)
           task = session.exec(statement).first()
           if not task:
                raise HTTPException(status_code=404, detail="Task not found")
@@ -141,3 +142,5 @@ def update_task(title: str, updated:TaskUpdate, username: str = Depends(get_curr
           session.add(task)
           session.commit()
           return task
+
+'''Foreign keys/joins — one drill, not applied in a real multi-table project yet'''
