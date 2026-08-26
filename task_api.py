@@ -142,5 +142,3 @@ def update_task(title: str, updated:TaskUpdate, username: str = Depends(get_curr
           session.add(task)
           session.commit()
           return task
-
-'''Foreign keys/joins — one drill, not applied in a real multi-table project yet'''
