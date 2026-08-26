@@ -29,12 +29,12 @@ def get_current_user(token: str = Depends(oauth2_scheme)): # decoding the payloa
 class Task(SQLModel, table=True): # creating a table with task information
      __tablename__ = "tasks"
      id: int | None = Field(default=None, primary_key=True)
-     title: str = Field(unique=True)
+     title: str 
      priority: str
      done: bool = False
      due_date: str | None = None
      frequency: str | None = None
-
+     owner: str
 class TaskCreate(SQLModel):   # task creation
      title: str 
      priority: str
@@ -66,11 +66,12 @@ ph = PasswordHasher()
 @app.get("/tasks")             # get endpoint used to list all tasks
 def list_tasks(username: str = Depends(get_current_user)):
       with Session(engine) as session:
-           return session.exec(select(Task)).all()
+           statement = select(Task).where(Task.owner == username)
+           return session.exec(statement).all()
 
 @app.post("/tasks")
 def create_task(task_in: TaskCreate, username: str = Depends(get_current_user)):
-     task = Task(**task_in.model_dump())
+     task = Task(**task_in.model_dump(), owner=username)
      with Session(engine) as session:
           session.add(task)
           session.commit()
@@ -105,7 +106,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.delete("/tasks/{title}") # deleting a task endpont
 def delete_task(title: str, username: str = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.title == title)
+          statement = select(Task).where(Task.title == title).where(Task.owner == username)
           task = session.exec(statement).first()
           if not task:
                raise HTTPException(status_code=404, detail="Task not found")
@@ -116,13 +117,13 @@ def delete_task(title: str, username: str = Depends(get_current_user)):
 @app.get("/tasks/filter")     # filtering tasks endpoint
 def filter_tasks(priority: str, username: str = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.priority == priority)
+          statement = select(Task).where(Task.priority == priority).where(Task.owner == username)
           return session.exec(statement).all()
 
 @app.put("/tasks/{title}")    # updating tasks endpoint
 def update_task(title: str, updated:TaskUpdate, username: str = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.title == title)
+          statement = select(Task).where(Task.title == title).where(Task.owner == username)
           task = session.exec(statement).first()
           if not task:
                raise HTTPException(status_code=404, detail="Task not found")
@@ -141,3 +142,5 @@ def update_task(title: str, updated:TaskUpdate, username: str = Depends(get_curr
           session.add(task)
           session.commit()
           return task
+
+'''Foreign keys/joins — one drill, not applied in a real multi-table project yet'''
