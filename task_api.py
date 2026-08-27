@@ -8,6 +8,7 @@ from argon2.exceptions import VerifyMismatchError
 from datetime import datetime, timezone, timedelta
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 
+load_dotenv() # reads .env and loads its values into the env
 SECRET_KEY = os.getenv("SECRET_KEY") # secret key, exposed for now just for practice
 ALGORITHM = "HS256"          # hashing algorithm
 
