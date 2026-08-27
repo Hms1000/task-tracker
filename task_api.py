@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from jose import jwt, JWTError
 from argon2 import PasswordHasher
 from fastapi import FastAPI, HTTPException, Depends
@@ -6,7 +8,7 @@ from argon2.exceptions import VerifyMismatchError
 from datetime import datetime, timezone, timedelta
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 
-SECRET_KEY = "my-secret-key" # secret key, exposed for now just for practice
+SECRET_KEY = os.getenv("SECRET_KEY") # secret key, exposed for now just for practice
 ALGORITHM = "HS256"          # hashing algorithm
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login") # finding the token request
@@ -23,7 +25,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)): # decoding the payloa
           username = payload.get("sub")
           if username is None:
                raise HTTPException(status_code=401, detail="Invalid token")
-          return username
+
+          with Session(engine) as session:
+               statement = select(User).where(User.username == username)
+               user = session.exec(statement).first()
+
+               if not user:
+                    raise HTTPException(status_code=401, detail="User Not Found")
+               return user.id           # returned id because unlike usernames, id can not be changed
      except JWTError:
           raise HTTPException(status_code=401, detail="Invalid token")
 class Task(SQLModel, table=True): # creating a table with task information
@@ -34,21 +43,19 @@ class Task(SQLModel, table=True): # creating a table with task information
      done: bool = False
      due_date: str | None = None
      frequency: str | None = None
-     owner: str
+     owner: int
 class TaskCreate(SQLModel):   # task creation
      title: str 
      priority: str
      done: bool = False
      due_date: str | None = None
      frequency: str | None = None
-
 class TaskUpdate(SQLModel):   # updating an existing task
      title: str | None = None
      priority: str | None = None
      done: bool | None = None 
      due_date: str | None = None
      frequency: str | None = None
-
 class User(SQLModel, table=True): # username and hashed password table
      id: int | None = Field(default=None, primary_key=True)
      username: str = Field(unique=True)
@@ -64,14 +71,14 @@ app = FastAPI()                #fastapi client
 ph = PasswordHasher()
 
 @app.get("/tasks")             # get endpoint used to list all tasks
-def list_tasks(username: str = Depends(get_current_user)):
+def list_tasks(user_id: int = Depends(get_current_user)):
       with Session(engine) as session:
-           statement = select(Task).where(Task.owner == username)
+           statement = select(Task).where(Task.owner == user_id)
            return session.exec(statement).all()
 
 @app.post("/tasks")
-def create_task(task_in: TaskCreate, username: str = Depends(get_current_user)):
-     task = Task(**task_in.model_dump(), owner=username)
+def create_task(task_in: TaskCreate, user_id: int = Depends(get_current_user)):
+     task = Task(**task_in.model_dump(), owner=user_id)
      with Session(engine) as session:
           session.add(task)
           session.commit()
@@ -104,9 +111,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
           return {"access_token": token, "token_type": "bearer"}
 
 @app.delete("/tasks/{title}") # deleting a task endpont
-def delete_task(title: str, username: str = Depends(get_current_user)):
+def delete_task(title: str, user_id: int = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.title == title).where(Task.owner == username)
+          statement = select(Task).where(Task.title == title).where(Task.owner == user_id)
           task = session.exec(statement).first()
           if not task:
                raise HTTPException(status_code=404, detail="Task not found")
@@ -115,15 +122,15 @@ def delete_task(title: str, username: str = Depends(get_current_user)):
           return {"message": f"Deleted {title}"}
 
 @app.get("/tasks/filter")     # filtering tasks endpoint
-def filter_tasks(priority: str, username: str = Depends(get_current_user)):
+def filter_tasks(priority: str, user_id: int = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.priority == priority).where(Task.owner == username)
+          statement = select(Task).where(Task.priority == priority).where(Task.owner == user_id)
           return session.exec(statement).all()
 
 @app.put("/tasks/{title}")    # updating tasks endpoint
-def update_task(title: str, updated:TaskUpdate, username: str = Depends(get_current_user)):
+def update_task(title: str, updated:TaskUpdate, user_id: int = Depends(get_current_user)):
      with Session(engine) as session:
-          statement = select(Task).where(Task.title == title).where(Task.owner == username)
+          statement = select(Task).where(Task.title == title).where(Task.owner == user_id)
           task = session.exec(statement).first()
           if not task:
                raise HTTPException(status_code=404, detail="Task not found")
