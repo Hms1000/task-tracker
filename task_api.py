@@ -23,7 +23,11 @@ def get_current_user(token: str = Depends(oauth2_scheme)): # decoding the payloa
           username = payload.get("sub")
           if username is None:
                raise HTTPException(status_code=401, detail="Invalid token")
-          return username
+
+          with Session(engine) as session:
+               statement = select(User).where(User.username == username)
+               user = session.exec(statement).first()
+          return user.id           # returned id because unlike usernames, id can not be changed
      except JWTError:
           raise HTTPException(status_code=401, detail="Invalid token")
 class Task(SQLModel, table=True): # creating a table with task information
