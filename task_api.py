@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from jose import jwt, JWTError
 from argon2 import PasswordHasher
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from argon2.exceptions import VerifyMismatchError
 from datetime import datetime, timezone, timedelta
@@ -68,7 +69,14 @@ class UserCreate(SQLModel):    # collecting user login info
 engine = create_engine("sqlite:///tracker.db")
 SQLModel.metadata.create_all(engine)
 
-app = FastAPI()                #fastapi client
+app = FastAPI() 
+
+app.add_middleware(
+    CORSMiddleware,
+     allow_origins=["*"], # i restrict this later to only allow my frontend to access the api
+     allow_methods=["*"],
+     allow_headers=["*"]
+               )               #fastapi client
 ph = PasswordHasher()
 
 @app.get("/tasks")             # get endpoint used to list all tasks
